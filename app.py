@@ -378,3 +378,4 @@ if not df_filtrado.empty and 'Preço FOB ($/t)' in df_filtrado.columns and 'Data
 
 st.divider()
 st.caption("Desenvolvido pela Equipe de Pricing - Yara Industrial Solutions | Dados atualizados diariamente")
+# --- IGNORE ---
