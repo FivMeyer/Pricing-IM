@@ -7,9 +7,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime
 import os
 
-# ---------------------------------------
-# Configurações da Página
-# ---------------------------------------
+
 st.set_page_config(
     page_title="Painel de Pricing - Yara",
     page_icon="📈",
@@ -17,15 +15,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ---------------------------------------
-# Funções de Apoio
-# ---------------------------------------
 @st.cache_data
 def carregar_dados():
-    # Carregar dados do arquivo Excel
     caminho = '_data/df_case.xlsx'
     
-    # Verificar se o arquivo existe
     if not os.path.exists(caminho):
         st.error(f"Arquivo não encontrado: {caminho}")
         return pd.DataFrame()
@@ -33,13 +26,11 @@ def carregar_dados():
     try:
         df = pd.read_excel(caminho)
         
-        # Verificar colunas essenciais
         colunas_necessarias = ['Data', 'Produto', 'Preço FOB ($/t)', 'CFR ($/t)']
         for col in colunas_necessarias:
             if col not in df.columns:
                 st.error(f"Coluna obrigatória não encontrada: {col}")
                 
-        # Converter coluna Data para datetime
         if 'Data' in df.columns:
             df['Data'] = pd.to_datetime(df['Data'])
             
@@ -52,23 +43,15 @@ def carregar_dados():
 def formatar_moeda(valor):
     return f"R${valor:,.2f}"
 
-# ---------------------------------------
-# Carregamento de Dados
-# ---------------------------------------
 df = carregar_dados()
 
-# Verificar se os dados foram carregados corretamente
 if df.empty:
     st.stop()
 
-# ---------------------------------------
-# Barra Lateral (Filtros)
-# ---------------------------------------
 with st.sidebar:
     st.image("https://www.yara.com/corporate/images/yara-logo.svg", width=150)
     st.title("Filtros")
     
-    # Filtro de produtos
     produtos_disponiveis = df['Produto'].unique() if 'Produto' in df.columns else []
     produtos = st.multiselect(
         "Produtos:",
@@ -76,7 +59,6 @@ with st.sidebar:
         default=produtos_disponiveis
     )
     
-    # Filtro de datas
     if 'Data' in df.columns:
         data_min = df['Data'].min().date()
         data_max = df['Data'].max().date()
@@ -88,7 +70,6 @@ with st.sidebar:
     else:
         data_inicio, data_fim = None, None
     
-    # Filtro de clientes
     clientes_disponiveis = df['Cliente'].unique() if 'Cliente' in df.columns else []
     clientes = st.multiselect(
         "Clientes:",
@@ -99,7 +80,6 @@ with st.sidebar:
     st.divider()
     st.caption("Atualizado em: " + datetime.now().strftime("%d/%m/%Y %H:%M"))
 
-# Aplicar filtros
 try:
     df_filtrado = df.copy()
     
@@ -119,15 +99,9 @@ except Exception as e:
     st.error(f"Erro ao aplicar filtros: {str(e)}")
     df_filtrado = df.copy()
 
-# ---------------------------------------
-# Página Principal
-# ---------------------------------------
 st.title("📊 Painel de Pricing e Inteligência de Mercado")
 st.markdown("Análise em tempo real dos preços, volume de vendas e fatores de mercado.")
 
-# ---------------------------------------
-# Seção 1: KPIs Principais
-# ---------------------------------------
 st.header("Indicadores-Chave")
 
 if not df_filtrado.empty:
@@ -154,9 +128,6 @@ if not df_filtrado.empty:
         cambio_medio = df_filtrado['Câmbio (R$/US$)'].mean()
         col4.metric("Câmbio Médio", f"R${cambio_medio:.2f}")
 
-# ---------------------------------------
-# Seção 2: Análise Temporal (Com Médias Diárias)
-# ---------------------------------------
 st.header("Tendências de Mercado")
 
 if not df_filtrado.empty and 'Data' in df_filtrado.columns:
@@ -164,7 +135,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
     
     with tab1:
         if 'Preço FOB ($/t)' in df_filtrado.columns and 'CFR ($/t)' in df_filtrado.columns:
-            # Calcular médias diárias
             df_medias = df_filtrado.groupby(df_filtrado['Data'].dt.date).agg({
                 'Preço FOB ($/t)': 'mean',
                 'CFR ($/t)': 'mean'
@@ -173,7 +143,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
             
             fig = go.Figure()
             
-            # Adicionar FOB (média diária)
             fig.add_trace(go.Scatter(
                 x=df_medias['Data'],
                 y=df_medias['Preço FOB ($/t)'],
@@ -182,7 +151,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
                 line=dict(width=2.5, color='#1f77b4')
             ))
             
-            # Adicionar CFR (média diária)
             fig.add_trace(go.Scatter(
                 x=df_medias['Data'],
                 y=df_medias['CFR ($/t)'],
@@ -191,7 +159,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
                 line=dict(width=2.5, color='#ff7f0e', dash='dash')
             ))
             
-            # Adicionar linha de tendência para FOB
             try:
                 z_fob = np.polyfit(df_medias['Data'].astype(np.int64) // 10**9, 
                                   df_medias['Preço FOB ($/t)'], 1)
@@ -215,7 +182,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
             st.plotly_chart(fig, use_container_width=True)
     
     with tab2:
-        # Calcular médias diárias para commodities
         df_commodities = df_filtrado.groupby(df_filtrado['Data'].dt.date).agg({
             'FuturoMilho': 'mean',
             'FuturoSoja': 'mean',
@@ -225,7 +191,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
         
         fig = go.Figure()
         
-        # Commodities com médias diárias
         if 'FuturoMilho' in df_commodities.columns:
             fig.add_trace(go.Scatter(
                 x=df_commodities['Data'],
@@ -257,7 +222,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
-        # Configurar eixos secundários
         fig.update_layout(
             yaxis=dict(title="Milho/Soja (US$/bushel)", side="left"),
             yaxis2=dict(
@@ -270,9 +234,6 @@ if not df_filtrado.empty and 'Data' in df_filtrado.columns:
         
         st.plotly_chart(fig, use_container_width=True)
 
-# ---------------------------------------
-# Seção 3: Análise por Produto
-# ---------------------------------------
 st.header("Análise por Produto")
 
 if not df_filtrado.empty and 'Produto' in df_filtrado.columns:
@@ -306,13 +267,9 @@ if not df_filtrado.empty and 'Produto' in df_filtrado.columns:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-# ---------------------------------------
-# Seção 4: Correlações de Mercado
-# ---------------------------------------
 st.header("Relações de Mercado")
 
 if not df_filtrado.empty:
-    # Selecionar colunas numéricas para correlação
     colunas_numericas = []
     for col in ['Preço FOB ($/t)', 'CFR ($/t)', 'Câmbio (R$/US$)', 
                'CotacaoPetroleo', 'FuturoMilho', 'FuturoSoja']:
@@ -331,7 +288,6 @@ if not df_filtrado.empty:
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    # Dispersão Preço vs Commodities
     if 'Preço FOB ($/t)' in df_filtrado.columns and len(colunas_numericas) > 1:
         st.subheader("Relação entre Preço FOB e Commodities")
         col_x, col_y = st.columns(2)
@@ -361,9 +317,6 @@ if not df_filtrado.empty:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-# ---------------------------------------
-# Seção 5: Análise de Clientes
-# ---------------------------------------
 st.header("Desempenho por Cliente")
 
 if not df_filtrado.empty and 'Cliente' in df_filtrado.columns:
@@ -379,9 +332,6 @@ if not df_filtrado.empty and 'Cliente' in df_filtrado.columns:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-# ---------------------------------------
-# Seção 6: Simulador de Precificação
-# ---------------------------------------
 st.header("Simulador de Cenários")
 st.markdown("Estime o impacto de variações de mercado no preço final do produto.")
 
@@ -396,7 +346,7 @@ with col2:
 with col3:
     futuro_soja = st.slider("Futuro da Soja (US$/bushel)", 10.0, 20.0, 14.5, 0.1)
 
-# Modelo preditivo simplificado (exemplo)
+# Modelo preditivo ---- EXEMPLO
 preco_base = 450
 coef_cambio = 20
 coef_petroleo = 0.8
@@ -405,14 +355,10 @@ coef_soja = 2.5
 preco_estimado = preco_base + coef_cambio * (cambio - 5.0) + coef_petroleo * (petroleo - 80) + coef_soja * (futuro_soja - 14.0)
 st.subheader(f"Preço FOB Estimado: :blue[{formatar_moeda(preco_estimado)}]")
 
-# ---------------------------------------
-# Seção 7: Monitoramento de Alertas
-# ---------------------------------------
 st.header("Monitoramento de Alertas")
 
 if not df_filtrado.empty and 'Preço FOB ($/t)' in df_filtrado.columns and 'Data' in df_filtrado.columns:
     try:
-        # Ordenar por data para garantir a última entrada
         df_ordenado = df_filtrado.sort_values('Data')
         
         if len(df_ordenado) > 30:
@@ -430,8 +376,5 @@ if not df_filtrado.empty and 'Preço FOB ($/t)' in df_filtrado.columns and 'Data
     except Exception as e:
         st.warning(f"Não foi possível verificar alertas: {str(e)}")
 
-# ---------------------------------------
-# Rodapé
-# ---------------------------------------
 st.divider()
 st.caption("Desenvolvido pela Equipe de Pricing - Yara Industrial Solutions | Dados atualizados diariamente")
